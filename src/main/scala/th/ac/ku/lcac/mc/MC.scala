@@ -13,7 +13,9 @@ trait MC[A] {
 
 object MC {
 
-  def compose[A](first: A)(implicit mc: MC[A]): Stream[A] = {
+  def compose[A: MC](first: A): Stream[A] = {
+
+    val mc = implicitly[MC[A]]
 
     def move(o: A): Stream[A] = {
       val n = mc.move(o)
