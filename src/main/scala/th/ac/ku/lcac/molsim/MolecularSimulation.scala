@@ -3,46 +3,72 @@ package th.ac.ku.lcac.molsim
 import th.ac.ku.lcac.mc._
 import scala.util.Random
 
-case class Position(x: Double, y: Double, z: Double)
+case class Position(x: Double, y: Double, z: Double) {
+  override def toString() = "{%12.6f, %12.6f, %12.6f}".format(x,y,z)
+}
 
 object Position {
-  def distance(a: Position, b: Position): Double = math.sqrt(a.x*b.x + a.y*b.y + a.z*b.z)
+  def distance(a: Position, b: Position): Double = {
+    val dx = a.x - b.x
+    val dy = a.y - b.y
+    val dz = a.z - b.z
+    math.sqrt(dx*dx + dy*dy + dz*dz)
+  }
+
 }
 
 
-class ArMC(val maxStepSize: Double, acceptRate: Double = 0.5, randomSeed: Option[Long] = None) extends MC[List[Position]] {
+class ArMC(val maxStepSize: Double, val temperature: Double = 300, randomSeed: Option[Long] = None) extends MC[List[Position]] {
 
-  val epsilon = 119.8 // K
+  val BoltzmanConstant: Double = 1.380648813E-23 // J/K
 
-  val zigma = 0.3405 // nm
+  val Beta = 1.0/(BoltzmanConstant*temperature) // 1/J
+
+  val epsilon = 1.65E-21 // J
+
+  val zigma = 3.405 // Angstrom
 
   val random = randomSeed match {
     case Some(seed) => new Random(seed)
     case None       => new Random()
   }
 
-  def accept(o: List[Position], n: List[Position]): Boolean = (energy(n) < energy(o)) || random.nextDouble > acceptRate
+  def accept(o: List[Position], n: List[Position]): Boolean = {
+    val dV = energy(n) - energy(o)
+    (dV < 0) || random.nextDouble < math.min(1.0, math.exp(- Beta*dV))
+  }
 
-  // Random walk
+  // Random move of the configuration
+  // One position per move
   def move(list: List[Position]): List[Position] = {
-      for (atom <- list) yield Position(atom.x + walk, atom.y + walk, atom.z + walk)
+      // pre & post is fixed positions.
+      // m is moving position
+      val (pre, m::post) = list.splitAt(random.nextInt(list.size))
+      // random move in all three direction
+      val n = Position(m.x + walk, m.y + walk, m.z + walk)
+      pre++(n::post)
   }
 
   // random walk between -maxStepSize to maxStepSize
   private def walk: Double = (2.0*random.nextDouble - 1.0) * maxStepSize
 
 
+  // Energy of the system (J).
   private def energy(m: List[Position]): Double = {
-    def calc(m: List[Position], e: Double): Double = m match {
-      case Nil => e
-      case a::others =>
-        val zorList = for (b <- others) yield zigma/Position.distance(a, b)
-        val new_e = zorList.foldLeft(e) { (eacc, zor) => eacc + (4 * epsilon * (math.pow(zor, 12) - math.pow(zor, 6))) }
 
-        calc(others, new_e)
+    def calc(a: Position, others: List[Position], acc: Double): Double = others match {
+      case Nil => acc
+      case bs  =>
+        val zorList = for (b <- bs) yield zigma/Position.distance(a, b)
+        val new_e = zorList.foldLeft(acc) { (eacc, zor) => eacc + (4 * epsilon * (math.pow(zor, 12) - math.pow(zor, 6))) }
+
+        calc(bs.head, bs.tail, new_e)
     }
 
-    calc(m, 0.0)
+    m match {
+      case Nil    => 0.0
+      case x::xs  => calc(x, xs, 0.0)
+    }
 
   }
 }
@@ -53,13 +79,16 @@ object MolecularSimulation {
 
     val atoms = List(
       Position(0.0, 0.0, 0.0),
-      Position(0.96, 0.0, 0.0)
+      Position(3.0, 0.0, 0.0)
     )
 
-    implicit val xxx = new ArMC(0.1)
+    implicit val xxx = new ArMC(1.0)
 
-    for (t <- MC.compose(atoms).take(10)) {
-      println(t)
+    val transientSteps = 100
+    val equilibriumSteps = 100
+
+    for (config <- MC.compose(atoms).drop(transientSteps).take(equilibriumSteps)) {
+      println(Position.distance(config.head, config.tail.head))
     }
 
   }
