@@ -1,5 +1,3 @@
-package th.ac.ku.lcac.molsim
-
 object PiCalc {
 
   val random = new scala.util.Random()
