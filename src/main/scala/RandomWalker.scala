@@ -27,7 +27,9 @@ object RandomWalker {
     for (tup <- randomWalk(config, 0.5).take(10)) println(tup)
   }
 
-  def randomWalk[A](config: A, maxStepSize: Double)(implicit coords: Coordinates[A]): Stream[A] = {
+  def randomWalk[A: Coordinates](config: A, maxStepSize: Double): Stream[A] = {
+
+    val coords = implicitly[Coordinates[A]]
 
     def move(config: A): Stream[A] = {
 
