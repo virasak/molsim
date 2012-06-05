@@ -20,10 +20,8 @@ object MC {
     def move(o: A): Stream[A] = {
       val n = mc.move(o)
 
-      if (mc.accept(o, n))
-        Stream.cons(n, move(n))
-      else
-        move(o)
+      val t = if (mc.accept(o, n)) n else o
+      Stream.cons(t, move(t))
     }
 
     Stream.cons(first, move(first))
