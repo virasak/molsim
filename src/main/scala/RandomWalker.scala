@@ -1,5 +1,3 @@
-package th.ac.ku.lcac.molsim
-
 case class Vector(x: Double, y: Double, z: Double)
 
 trait Coordinates[A] {

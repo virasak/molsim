@@ -1,5 +1,3 @@
-package th.ac.ku.lcac.molsim
-
 object Freezer {
   def main(args: Array[String]) {
     for (i <- freeze(0).take(10)) println(i)
